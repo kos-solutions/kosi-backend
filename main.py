@@ -1,27 +1,48 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from openai import OpenAI
 import uvicorn
 
 app = FastAPI()
 
+client = OpenAI(api_key="YOUR_OPENAI_KEY_HERE")
+
 class StoryRequest(BaseModel):
-    child_name: str
-    age: int
     prompt: str
 
-class StoryResponse(BaseModel):
-    story: str
+KOSI_SYSTEM_PROMPT = (
+    "Tu ești Kosi, un prieten AI cald, blând și empatic, creat special pentru copii. "
+    "Vorbesti cu o voce jucăușă și liniștitoare. "
+    "Folosești propoziții scurte și simple. "
+    "Nu folosești ton robotic sau cuvinte complicate. "
+    "Nu moralizezi, nu dai ordine și nu sperii copilul. "
+    "Oferi siguranță, încurajare și căldură. "
+    "Răspunsurile tale trebuie să sune afectuos și pline de prietenie. "
+)
 
-@app.post("/story", response_model=StoryResponse)
-async def generate_story(req: StoryRequest):
-    # TODO: aici adaugi AI-ul real mai târziu
-    fake_story = (
-        f"O poveste despre {req.child_name}, "
-        f"care la varsta de {req.age} ani a descoperit {req.prompt}. "
-        f"A fost o aventura minunata!"
-    )
+@app.post("/story")
+async def story(request: StoryRequest):
 
-    return StoryResponse(story=fake_story)
+    if not request.prompt or request.prompt.strip() == "":
+        raise HTTPException(status_code=400, detail="Prompt invalid")
+
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": KOSI_SYSTEM_PROMPT},
+                {"role": "user", "content": request.prompt}
+            ],
+            temperature=0.75,
+            max_tokens=500
+        )
+
+        story_text = completion.choices[0].message["content"]
+        return {"story": story_text}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
