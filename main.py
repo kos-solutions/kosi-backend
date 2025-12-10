@@ -3,11 +3,12 @@ from pydantic import BaseModel
 from openai import OpenAI
 import base64
 import uvicorn
+import os
 
 app = FastAPI()
 
 # IMPORTANT: cheia trebuie pusă în Railway → Variables
-client = OpenAI(api_key="YOUR_OPENAI_KEY_HERE")
+client = OpenAI(api_key="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")
 
 
 # ------------------ REQUEST MODELS ------------------
