@@ -5,8 +5,10 @@ import uvicorn
 
 app = FastAPI()
 
-client = OpenAI(api_key="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")
-
+client = OpenAI(
+    api_key="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",
+    project="default"
+)
 class StoryRequest(BaseModel):
     prompt: str
 
