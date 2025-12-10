@@ -54,9 +54,30 @@ async def story(request: StoryRequest):
 
         story_text = completion.choices[0].message["content"]
         return {"story": story_text}
+@app.post("/story")
+async def story(request: StoryRequest):
+
+    if not request.prompt or request.prompt.strip() == "":
+        return {"story": "Nu am înțeles ce ai spus. Vrei să mai zici o dată? 😊"}
+
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": KOSI_SYSTEM_PROMPT},
+                {"role": "user", "content": request.prompt}
+            ],
+            temperature=0.8,
+            max_tokens=500
+        )
+
+        story_text = completion.choices[0].message["content"]
+        return {"story": story_text}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # 🔥 IMPORTANT: returnează ÎNTOTDEAUNA story, chiar și la eroare
+        return {"story": f"Kosi are o mică problemă acum, dar revine imediat. ({str(e)})"}
+
 
 
 # ------------------ TTS ENDPOINT ------------------
