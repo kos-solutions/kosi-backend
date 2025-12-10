@@ -6,24 +6,30 @@ import os
 
 app = FastAPI()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_PROJECT = os.getenv("OPENAI_PROJECT_ID", "default")
-
 client = OpenAI(
-    api_key=OPENAI_API_KEY,
-    project=OPENAI_PROJECT
+    api_key=os.getenv("OPENAI_API_KEY"),
+    project=os.getenv("OPENAI_PROJECT_ID")
 )
 
 class StoryRequest(BaseModel):
     prompt: str
 
+class StoryResponse(BaseModel):
+    story: str
+
 KOSI_SYSTEM_PROMPT = (
-    "Tu ești Kosi, un prieten AI cald..."
+    "Tu ești Kosi, un prieten AI cald, blând și empatic, creat special pentru copii. "
+    "Vorbesti cu o voce jucăușă și liniștitoare. "
+    "Folosești propoziții scurte și simple. "
+    "Nu folosești ton robotic sau cuvinte complicate. "
+    "Nu moralizezi, nu dai ordine și nu sperii copilul. "
+    "Oferi siguranță, încurajare și căldură. "
+    "Răspunsurile tale trebuie să sune afectuos și prietenoase. "
 )
 
-@app.post("/story")
-async def story(request: StoryRequest):
 
+@app.post("/story", response_model=StoryResponse)
+async def story(request: StoryRequest):
     if not request.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt invalid")
 
@@ -32,14 +38,27 @@ async def story(request: StoryRequest):
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": KOSI_SYSTEM_PROMPT},
-                {"role": "user", "content": request.prompt}
+                {"role": "user", "content": request.prompt},
             ],
-            max_tokens=400,
-            temperature=0.7
+            temperature=0.7,
+            max_tokens=300
         )
 
-        story_text = completion.choices[0].message["content"]
-        return {"story": story_text}
+        # 👇 FIX: noul SDK returnează content ca LISTĂ de ContentParts
+        content = completion.choices[0].message.content
+
+        # content poate fi:
+        # 1) un string simplu
+        # 2) o listă de obiecte {"type":"text","text":"..."}
+        if isinstance(content, str):
+            story_text = content
+        else:
+            # extrage și concatenează textul
+            story_text = "".join(
+                part.text for part in content if hasattr(part, "text")
+            )
+
+        return StoryResponse(story=story_text)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
